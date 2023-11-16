@@ -1,0 +1,760 @@
+
+#include "smx-20Sxx.h"
+#include <libusb-1.0/libusb.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <pthread.h>
+#include <string.h>
+#include "smx_usb.h"
+
+#ifndef max
+#define max(a,b) (((a) > (b)) ? (a) : (b))
+#endif
+
+#ifndef min
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#endif
+
+typedef struct _TBulkDescriptor
+{
+	struct libusb_transfer* transferDescriptor;
+	unsigned char* buffer;
+	int            bufferLen;
+} BulkDescriptor;
+
+
+typedef struct tagSMX
+{
+	libusb_device_handle* hUSBdev = NULL;
+	
+	pthread_t      	thread1;				// libusb requires some polling to execute asynchonous events, lazy bitch :)
+	bool           	thread_exit;			// set to -1 to ask thread to exit
+	TIdentData     	identdata;
+	TFrameParams    FrameParams;
+
+	SMX_StreamMode 	streamState;
+	
+	BulkDescriptor* arBulkDesc;				// array of bulk descriptors
+	int 			iBulkCount;				// the number of bulk requests swarm
+	
+	unsigned char*  arFrames[3];
+	unsigned char*  ptrFramePos;			// position within current frame arFrames[frame_idx]
+	unsigned int    iFrameBytesAcquired;
+	bool            bFrameDone;
+	bool            bFileSaved;
+} SMX;
+
+
+void* usb_thread_func(void* arg)
+{
+	bool* thread_exit = (bool*)arg;
+	while ( !(*thread_exit) )
+	{
+		libusb_handle_events(NULL);	 // blocking call, returns when some event happens
+	}
+	
+	return NULL;
+}
+
+HANDLE smx20s12X_OpenDevice(ULONG DeviceID)
+{
+int ret;
+	
+	struct libusb_device_handle* hUSBdev = libusb_open_device_with_vid_pid(NULL, 0x2969, 0xA520);
+	if (!hUSBdev)
+	{
+		printf("Error finding device vid=0x2969 pid=0xA520");
+		return INVALID_HANDLE_VALUE;
+	}
+	
+	// allocate mem for camera general descriptor
+	SMX* smx = (SMX*)malloc(sizeof(SMX));
+	smx->hUSBdev = hUSBdev;
+	
+	smx->streamState = Camera_Stopped;
+	
+	// allow libusb to automatically detach the kernel driver on an interface
+	// when claiming the interface and attach it back when releasing the interface
+	ret = libusb_set_auto_detach_kernel_driver(hUSBdev, 1);
+	if (ret != LIBUSB_SUCCESS)
+	{
+		printf("Error on auto detach kernel driver: %s\n", libusb_error_name(ret));
+		libusb_close(hUSBdev);
+
+		return INVALID_HANDLE_VALUE;
+	}
+	
+	ret = libusb_claim_interface(hUSBdev, 0);
+	if (ret < 0)
+	{
+		printf("Error claiming interface: %s\n", libusb_error_name(ret));
+		libusb_close(hUSBdev);
+
+		return INVALID_HANDLE_VALUE;
+	}
+	
+	// start separate thread for asynchronous usblib events handling
+	smx->thread_exit = false;
+	pthread_create( &(smx->thread1), NULL, usb_thread_func, &(smx->thread_exit));
+	
+	// Init sequence from vendor
+	CxPerformVendorInit(smx);
+	
+	for (int i=0; i<1; i++)
+		smx->arFrames[i] = (unsigned char*) malloc(4096*3000*2);
+	smx->ptrFramePos = smx->arFrames[0];
+	smx->iFrameBytesAcquired = 0;
+	smx->bFrameDone = false;
+	smx->bFileSaved = false;
+
+	return smx;
+}
+
+
+BOOL smx20s12X_CloseDevice(HANDLE H)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+
+	libusb_release_interface(smx->hUSBdev, 1);
+	
+	smx->thread_exit = true;		    // notify thread to exit
+	libusb_close(smx->hUSBdev);	        // this wakes up libusb_handle_events and it returns control to the thre function
+	
+	pthread_join(smx->thread1, NULL);	// consider pthread_cancel...
+	
+	free(smx);
+	smx = NULL;
+
+	return true;
+}
+
+
+static void LIBUSB_CALL bulk_callback(struct libusb_transfer* transfDescriptor)
+{
+	if (transfDescriptor->status != LIBUSB_TRANSFER_COMPLETED)
+		printf("Received bulk packet with the error status: %s\n", libusb_error_name(transfDescriptor->status) );
+	
+	printf("Bulk packet returned data length: %d\n", transfDescriptor->actual_length);
+	
+	SMX* smx = (SMX*)transfDescriptor->user_data;
+	
+	
+	if (smx->bFrameDone)
+		return;	// next transfer has to write to the next frame
+		
+	memcpy(smx->ptrFramePos, transfDescriptor->buffer, transfDescriptor->actual_length);
+	
+	smx->iFrameBytesAcquired += transfDescriptor->actual_length;
+	smx->ptrFramePos += transfDescriptor->actual_length;
+	
+	if (smx->iFrameBytesAcquired >= 1024*16*10)
+	{
+		smx->bFrameDone = true;
+		return;
+	}
+	
+	int res = libusb_submit_transfer(transfDescriptor);
+	if (res != 0)
+		printf("libusb_submit_transfer error: %s\n", libusb_error_name(res));
+		
+}
+
+BOOL usbStartBulkStream(HANDLE H, int iBulkCount)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+
+	smx->iBulkCount = iBulkCount;
+	smx->arBulkDesc = (BulkDescriptor*) malloc( sizeof(BulkDescriptor)*iBulkCount * 2 );	// 2 endpoints
+	
+	// Endpoint 0x82
+	for (int i=0; i<iBulkCount; i++)
+	{
+		smx->arBulkDesc[i].transferDescriptor = libusb_alloc_transfer(0);
+		smx->arBulkDesc[i].bufferLen = 1024*16;
+		smx->arBulkDesc[i].buffer = (unsigned char*) malloc( 1024*16 );
+	}
+
+	// Endpoint 0x84
+	for (int i=iBulkCount; i<iBulkCount*2; i++)
+	{
+		smx->arBulkDesc[i].transferDescriptor = libusb_alloc_transfer(0);
+		smx->arBulkDesc[i].bufferLen = 1024*16;
+		smx->arBulkDesc[i].buffer = (unsigned char*) malloc( 1024*16 );
+	}
+
+	// Endpoint 0x82
+	for (int i=0; i<iBulkCount; i++)
+	{
+		libusb_fill_bulk_transfer(  smx->arBulkDesc[i].transferDescriptor, // transfer descr
+									smx->hUSBdev,   			  		   // device handle
+									0x82,           			  		   // endpoint address
+									smx->arBulkDesc[i].buffer,	  	  	   // databuffer
+									smx->arBulkDesc[i].bufferLen, 	  	   // length of data buffer, however device defines how many bytes to send to host
+									bulk_callback,  			  		   // callback
+									smx, 				  				   // user data
+									500   				  				   // timeout
+								 );
+								 
+		int res = libusb_submit_transfer(smx->arBulkDesc[i].transferDescriptor);
+		if (res != 0)
+			printf("libusb_submit_transfer error: %s\n", libusb_error_name(res));
+	}
+	
+	// Endpoint 0x84
+	for (int i=iBulkCount; i<iBulkCount*2; i++)
+	{
+		libusb_fill_bulk_transfer(  smx->arBulkDesc[i].transferDescriptor, // transfer descr
+									smx->hUSBdev,   			  		   // device handle
+									0x84,           			  		   // endpoint address
+									smx->arBulkDesc[i].buffer,	  	  	   // databuffer
+									smx->arBulkDesc[i].bufferLen, 	  	   // length of data buffer, however device defines how many bytes to send to host
+									bulk_callback,  			  		   // callback
+									smx, 				  				   // user data
+									500   				  				   // timeout
+								 );
+								 
+		int res = libusb_submit_transfer(smx->arBulkDesc[i].transferDescriptor);
+		if (res != 0)
+			printf("libusb_submit_transfer error: %s\n", libusb_error_name(res));
+	}
+
+	return true;
+}
+
+
+BOOL usbStopBulkStream(HANDLE H)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+
+	// all timed-out bulk transfers are cancelled by libusb internally...
+	// The code is here to make sure
+	
+	// Enpoint 0x82
+	for (int i=0; i<smx->iBulkCount; i++)
+	{
+		libusb_cancel_transfer(smx->arBulkDesc[i].transferDescriptor);
+	}
+	
+	// Enpoint 0x84
+	for (int i=smx->iBulkCount; i<smx->iBulkCount*2; i++)
+	{
+		libusb_cancel_transfer(smx->arBulkDesc[i].transferDescriptor);
+	}
+
+	// make sure all transfers time-out and become cancelled or has become cancelled by us and their callback function is called
+	sleep(1);
+	
+	for (int i=0; i<smx->iBulkCount; i++)
+	{
+		libusb_free_transfer(smx->arBulkDesc[i].transferDescriptor);
+		
+		free(smx->arBulkDesc[i].buffer);
+		smx->arBulkDesc[i].bufferLen = 0;
+	}
+
+	for (int i=smx->iBulkCount; i<smx->iBulkCount*2; i++)
+	{
+		libusb_free_transfer(smx->arBulkDesc[i].transferDescriptor);
+		
+		free(smx->arBulkDesc[i].buffer);
+		smx->arBulkDesc[i].bufferLen = 0;
+	}
+
+	// clear possible stall
+	libusb_clear_halt(smx->hUSBdev, 0x81);
+	
+	return true;
+}
+
+BOOL smx20s12X_GetStreamMode(HANDLE H, SMX_StreamMode* StreamMode)
+{
+	SMX* smx = (SMX*)H;
+	if (!smx) return false;
+	
+	(*StreamMode) = smx->streamState;
+	
+	return true;
+}
+
+BOOL smx20s12X_SetStreamMode(HANDLE H, SMX_StreamMode StreamModeTarget)
+{ 
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+
+	if (smx->streamState == StreamModeTarget) return false;
+	
+	if (StreamModeTarget == Camera_Started)
+	{
+		//usbStartBulkStream(H, 2);
+		
+		CxPerformVendorStreamStart(H);
+
+		int ret = smx20_usb_ControlWriteSpecial(smx->hUSBdev, DATA_FLOW, START_AHEAD, 0, NULL, 0);
+		if (ret != 0)
+			return false;
+		
+	}
+	else if (StreamModeTarget == Camera_Stopped)
+	{
+		int ret = smx20_usb_ControlWriteSpecial(smx->hUSBdev, DATA_FLOW, STOP_DEAD,   0, NULL, 0);
+		if (ret != 0)
+			return false;
+			
+		// wait for pending bulk transfer to complete
+		sleep(1);
+		
+		usbStopBulkStream(H);
+	}
+
+	return true;
+}
+
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+BOOL smx20s12X_GetCameraInfo(HANDLE H, PCameraInfo CameraInfo) { return false; }
+BOOL smx20s12X_GetCameraInfoEx(HANDLE H, PCameraInfoEx CameraInfoEx) { return false; }
+BOOL smx20s12X_GetUsbSpeed(HANDLE H, PUsb_Speed UsbSpeed, PULONG RealSpeedMBpS) { return false; }
+BOOL CxGetIdentData(HANDLE H, PIdentData pIdentData) { return false; }
+
+
+// ERROR_NO_DATA_DETECTED	1104 (0x450)	- no video data received from camera
+// ERROR_GEN_FAILURE		31 (0x1F)		- mostly incorrect stream mode
+// ERROR_CRC				23 (0x17)		- missed frame in HDR mode (smx16 only)
+// ERROR_SEM_TIMEOUT		121 (0x79)		- request timeout
+//~ BOOL smx20s12X_GetFrame16(HANDLE H, PVOID Buffer, size_t length) { return false; }
+//~ BOOL smx20s12X_GetFrameEx16(HANDLE H, PVOID Buffer, size_t length) { return false; }
+
+BOOL smx20s12X_GetFrame8(HANDLE H, PVOID Buffer, size_t length)
+{
+	SMX* smx = (SMX*)H;
+	if (!smx) return false;
+	
+	if (smx->bFileSaved) return true;
+
+	while(!smx->bFrameDone)
+		sleep(1);
+	
+	printf("Saving frame memory\n");
+	FILE *fp = fopen("/home/polyitan/projects/PolyITANcamera/PolyITAN_Camera/PolyITAN_Camera/memory.txt", "wbx");
+	if (!fp) {
+		return false;
+	}
+	
+	fwrite(smx->arFrames[0], smx->iFrameBytesAcquired, 1, fp);
+	
+	fclose(fp);
+	
+	smx->bFileSaved=true;
+
+	return true;
+}
+
+
+BOOL smx20s12X_GetFrameEx8(HANDLE H, PVOID Buffer, size_t length) { return false; }
+
+BOOL smx20s12X_GetFrequency(HANDLE H, PULONG FrequencyMHz) { return false; }
+
+BOOL smx20s12X_GetFrameParams(HANDLE H, TFrameParams* FrameParams) { return false; }
+
+BOOL smx20s12X_SetFrameParams(HANDLE H, TFrameParams* FrameParams) { return false; }
+
+BOOL CxPerformVendorInit(HANDLE H)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	// Comamnd 0
+	unsigned char data0[256] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev,  I2C_FLASH_READ, 0x0700, &(data0[0]), 256);
+	
+	// Comamnd 1
+	smx20_usb_ControlWrite(smx->hUSBdev, 128,            0,      NULL,        0);
+	
+	// Command 2
+	unsigned char data2[8] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev,  READ_REGISTER,  WINDEX_GET_FRAMEPM,  &(data2[0]), 8);
+
+	// Command 3
+	unsigned char data3[3] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev,  READ_REGISTER,  WINDEX_FRAME_ROW,    &(data3[0]), 3);
+	
+	// Comamnd 4
+	unsigned char data4[8] = {0x0,0x0,0x0,0x0,0x0,0x10,0xb8,0x0b};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, WINDEX_GET_FRAMEPM,  &(data4[0]), 8);
+
+	// Comamnd 5
+	unsigned char data5[1] = {0x1};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x300a, &(data5[0]), 1);
+
+	// Comamnd 6
+	unsigned char data6[1] = {0x1};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x3000, &(data6[0]), 1);
+
+	// Comamnd 7
+	unsigned char data7[1] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev,  186,            0x0005, &(data7[0]), 1);
+	
+	// Comamnd 8
+	unsigned char data8[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, 187,            0x0005, &(data8[0]), 1);
+
+	// Comamnd 9
+	unsigned char data9[1] = {1};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x3000, &(data9[0]), 1);
+
+	// Comamnd 10
+	unsigned char data10[1] = {1};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x300a, &(data10[0]),1);
+
+	// Comamnd 11
+	unsigned char data11[256] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev, I2C_FLASH_READ,  0x0701, &(data11[0]),256);
+
+	// Comamnd 12
+	unsigned char data12[21] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev, 176,             0x0000, &(data12[0]),21);
+
+	// Comamnd 13
+	unsigned char data13[3] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev, 186,             0x0002, &(data13[0]),1);
+
+	return true;
+}
+
+BOOL CxPerformVendorStreamStart(HANDLE H)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	// Comamnd 0
+	unsigned char data0[1] = {1};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x300a, &(data0[0]),  1);
+	
+	// Comamnd 1
+	unsigned char data1[1] = {1};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x3000, &(data1[0]),  1);
+	
+	// Command 2
+	unsigned char data2[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x30ae, &(data2[0]),  1);
+
+	// Command 3
+	unsigned char data3[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x3000, &(data3[0]),  1);
+	
+	// Comamnd 4
+	unsigned char data4[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x300a, &(data4[0]),  1);
+
+	// Comamnd 5
+	unsigned char data5[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x300b, &(data5[0]),  1);
+
+	// Comamnd 6
+	unsigned char data6[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x0008, &(data6[0]),  1);
+ 
+	// Comamnd 7
+	unsigned char data7[1] = {0};
+	smx20_usb_ControlRead(smx->hUSBdev,  WRITE_REGISTER, 0x3000, &(data7[0]),  1);
+	
+	// Comamnd 8
+	unsigned char data8[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x300a, &(data8[0]),  1);
+
+	// Comamnd 9
+	unsigned char data9[1] = {0};
+	smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, 0x3000, &(data9[0]),  1);
+
+	return true;
+}
+
+BOOL smx20s12X_GetGain(HANDLE H, double* AGain/*, double* DGain*/)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	unsigned char data[2] = {0};
+
+	int ret = smx20_usb_ControlRead(smx->hUSBdev, READ_REGISTER, WINDEX_GAIN, &data[0], 2);
+	if (ret != 2)
+		return false;
+	
+	uint16_t uiGain = 0;
+	
+	uiGain  = data[1] << 8;
+	uiGain |= data[0];
+
+	(*AGain) = uiGain;
+
+	return true;
+}
+
+BOOL smx20s12X_SetGain(HANDLE H, double AGain/*, double DGain*/)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	if (AGain > 480) {
+		printf("Gain tried to be sent is %f, overriding with 480\n", AGain);
+		AGain = 480.0;
+	}
+	if (AGain < 0) {
+		printf("Gain tried to be sent is %f, overriding with 0\n", AGain);
+		AGain = 0.0;
+	}
+
+	uint16_t uiGain = AGain;
+	unsigned char data[2] = {0};
+
+	data[0] = uiGain & 0xFF;
+	data[1] = uiGain >> 8;
+
+	int ret = smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, WINDEX_GAIN, &data[0], 2);
+	if (ret != 2)
+		return false;
+	
+	return true;
+}
+
+// Exposure time is bound by 1 row and frame-acquire row index
+BOOL smx20s12X_GetExposureMinMax(HANDLE H, PULONG ExpMin, PULONG ExpMax)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	unsigned char data[3] = {0};
+
+	// Get frame row
+	int ret = smx20_usb_ControlRead(smx->hUSBdev, READ_REGISTER, WINDEX_FRAME_ROW, &data[0], 3);
+	if (ret != 3)
+		return false;
+	
+	uint32_t uiFrameRow = 0;
+	
+	uiFrameRow  = data[2] << 16;
+	uiFrameRow |= data[1] << 8;
+	uiFrameRow |= data[0];
+	
+	(*ExpMin) = 1;
+	(*ExpMax) = uiFrameRow;
+	
+	return true;
+}
+
+BOOL smx20s12X_GetExposureMinMaxMs(HANDLE H, double* ExpMin, double* ExpMax)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	ULONG ulMin, ulMax;
+	if (!smx20s12X_GetExposureMinMax(H, &ulMin, &ulMax))
+		return false;
+
+	(*ExpMin) = ulMin*RowMs;
+	(*ExpMax) = ulMax*RowMs;
+
+	return true;
+}
+
+// Returns Exposure in rows
+BOOL smx20s12X_GetExposure(HANDLE H, PULONG Exposure)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	unsigned char data[3] = {0};
+
+	// STEP 1: Get frame row
+	int ret = smx20_usb_ControlRead(smx->hUSBdev, READ_REGISTER, WINDEX_FRAME_ROW, &data[0], 3);
+	if (ret != 3)
+		return false;
+	
+	uint32_t uiFrameRow = 0;
+	
+	uiFrameRow  = data[2] << 16;
+	uiFrameRow |= data[1] << 8;
+	uiFrameRow |= data[0];
+	
+	// STEP 2: Get exposure component, real exposure is the difference between frame row and the component
+	memset(&data[0], 0, 3);
+	ret = smx20_usb_ControlRead(smx->hUSBdev, READ_REGISTER, WINDEX_EXPOS_COMP, &data[0], 3);
+	if (ret != 3)
+		return false;
+	
+	uint32_t uiExposureComp = 0;
+	
+	uiExposureComp  = data[2] << 16;
+	uiExposureComp |= data[1] << 8;
+	uiExposureComp |= data[0];
+	
+	// STEP 3: Calc exposure
+	ULONG ulExposure = uiFrameRow - uiExposureComp;
+	
+	(*Exposure) = ulExposure;
+	
+	return true;
+}
+
+BOOL smx20s12X_SetExposure(HANDLE H, ULONG Exposure)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	ULONG ExpMin, ExpMax;
+	if (!smx20s12X_GetExposureMinMax( H, &ExpMin, &ExpMax))
+		return false;
+	
+	if (Exposure > ExpMax)
+		Exposure = ExpMax;
+	if (Exposure < ExpMin)
+		Exposure = ExpMin;
+		
+	// ExpMax is nothing more than WINDEX_FRAME_ROW
+	// Calculate exposure_component from exposure
+	
+	ULONG ulExposComp = ExpMax - Exposure;
+			
+	unsigned char data[3] = {0};
+	
+	data[0] =  ulExposComp & 0xFF;
+	data[1] = (ulExposComp >> 8 ) & 0xFF;
+	data[2] = (ulExposComp >> 16) & 0xFF;
+
+	int ret = smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, WINDEX_EXPOS_COMP, &data[0], 3);
+	if (ret != 3)
+		return false;
+	
+	return true;
+}
+
+BOOL smx20s12X_SetExposureMs(HANDLE H, double Exposure, double* ExposureSet)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	ULONG uiExposure = Exposure/RowMs;	// ms/ms
+
+	if (!smx20s12X_SetExposure(H, uiExposure))
+		return false;
+
+	(*ExposureSet) = uiExposure*RowMs;
+
+	return true;
+}
+
+BOOL smx20s12X_GetExposureMs(HANDLE H, double* Exposure)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+
+	ULONG ExposureCurrent;
+	if (!smx20s12X_GetExposure(H, &ExposureCurrent))
+		return false;
+	
+	double fExposure = ExposureCurrent*RowMs;
+	(*Exposure) = fExposure;
+	
+	return true;	
+}
+
+BOOL smx20s12X_GetFrameRateMinMax(HANDLE H, double* FrameRateMin, double* FrameRateMax)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	// Does not work, no clue why
+	//~ unsigned char data[2] = {0};
+
+	//~ int ret = smx20_usb_ControlRead(smx->hUSBdev, READ_REGISTER, WINDEX_SENSOR_ROWS, &data[0], 2);
+	//~ if (ret != 2)
+		//~ return false;
+	
+	//~ uint16_t uiSensorRows = 0;
+	//~ uiSensorRows  = data[1] << 8;
+	//~ uiSensorRows |= data[0];
+	
+	uint16_t uiSensorRows = 3000;
+	
+	// Frame rate can not be faster than time required to acquire uiSensorRows and !required exposure time!
+	ULONG Exposure;
+	if (!smx20s12X_GetExposure(H, &Exposure))
+		return false;
+	
+	if (uiSensorRows < Exposure)	// sensor rows time is smaller than the current exposure
+	{
+		printf("Max frame rate is limited by the current exposure %ld\n", Exposure);
+		uiSensorRows = Exposure;
+	}
+	
+	(*FrameRateMin) = 1000.0/(1048575*RowMs);
+	(*FrameRateMax) = 1000.0/(uiSensorRows*RowMs);
+	
+	return true;
+}
+
+BOOL smx20s12X_GetFrameRate( HANDLE H, double* FrameRate)
+{ 
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	unsigned char data[3] = {0};
+
+	int ret = smx20_usb_ControlRead(smx->hUSBdev, READ_REGISTER, WINDEX_FRAME_ROW, &data[0], 3);
+	if (ret != 3)
+		return false;
+	
+	uint32_t uiFrameRow = 0;
+	
+	uiFrameRow  = data[2] << 16;
+	uiFrameRow |= data[1] << 8;
+	uiFrameRow |= data[0];
+	
+	double fFrameRate = 1000.0/(uiFrameRow*RowMs);	// 1000 comes from s->ms
+	(*FrameRate) = fFrameRate;
+	
+	return true;
+}
+
+BOOL smx20s12X_SetFrameRate( HANDLE H, double FrameRate, double* FrameRateSet)
+{
+	SMX* smx = (SMX*)H;
+	if ((!smx) || (!smx->hUSBdev)) return false;
+	
+	double FrameRateMin;
+	double FrameRateMax;
+	
+	if (!smx20s12X_GetFrameRateMinMax(H, &FrameRateMin, &FrameRateMax))
+		return false;
+		
+	ULONG uiRowsMax = (1000.0/FrameRateMin)/RowMs;	// mind that min frame rate is achieved waiting "max-number-row"
+	ULONG uiRowsMin = (1000.0/FrameRateMax)/RowMs;	// mind that max frame rate is achieved waiting "min-number-row"
+
+	uint32_t uiRowsAsked = (1000.0/FrameRate)/RowMs;
+	if (uiRowsAsked > uiRowsMax)
+		uiRowsAsked = uiRowsMax;
+	if (uiRowsAsked < uiRowsMin)
+		uiRowsAsked = uiRowsMin;
+		
+	unsigned char data[3] = {0};
+	
+	data[0] =  uiRowsAsked & 0xFF;
+	data[1] = (uiRowsAsked >> 8 ) & 0xFF;
+	data[2] = (uiRowsAsked >> 16) & 0xFF;
+
+	int ret = smx20_usb_ControlWrite(smx->hUSBdev, WRITE_REGISTER, WINDEX_FRAME_ROW, &data[0], 3);
+	if (ret != 3)
+		return false;
+		
+	(*FrameRateSet) = 1000.0/(uiRowsAsked*RowMs);
+	 
+	return true;
+}
+
+
+
