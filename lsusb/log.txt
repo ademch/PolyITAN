@@ -1,0 +1,275 @@
+Usage: ./sumix [-v] [-log] [-d </dev/bus/usb/...>]
+
+Dev (bus 2, device 2): 2969 - A520
+  Speed:                     5Gbit/s aka USB3.0
+  Manufacturer:              Sumix
+  Product:                   SMX20x
+  Serial Number:
+  Configuration [0]:
+    wTotalLength:              57
+    bNumInterfaces in config:  1
+    bConfigurationValue:       1
+    iConfiguration str descr:  0
+    bmAttributes:              80h Remote wakeup Self-powered
+    MaxPower:                  50
+    Interface[0] alt[0]:
+      bInterfaceNumber current:      0
+      bAlternateSetting current:     0
+      bNumEndpoints:                 3
+      bInterfaceClass:               255
+      bInterfaceSubClass:            0
+      bInterfaceProtocol:            0
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    81h, endpoint number: 1, dir: in(device-to-host)
+        bmAttributes:        02h type: bulk
+        wMaxPacketSize:      1024
+        bInterval:           0
+        bRefresh:            0
+        bSynchAddress:       0
+      USB 3.0 Endpoint Companion:
+        bMaxBurst:           15
+        bmAttributes:        00h
+        wBytesPerInterval:   0
+      Endpoint:
+        bEndpointAddress:    84h, endpoint number: 4, dir: in(device-to-host)
+        bmAttributes:        02h type: bulk
+        wMaxPacketSize:      1024
+        bInterval:           0
+        bRefresh:            0
+        bSynchAddress:       0
+      USB 3.0 Endpoint Companion:
+        bMaxBurst:           15
+        bmAttributes:        00h
+        wBytesPerInterval:   0
+      Endpoint:
+        bEndpointAddress:    82h, endpoint number: 2, dir: in(device-to-host)
+        bmAttributes:        02h type: bulk
+        wMaxPacketSize:      1024
+        bInterval:           0
+        bRefresh:            0
+        bSynchAddress:       0
+      USB 3.0 Endpoint Companion:
+        bMaxBurst:           15
+        bmAttributes:        00h
+        wBytesPerInterval:   0
+  Binary Object Store (BOS):
+    wTotalLength:            22
+    bNumDeviceCaps descr-s:  2
+    USB 2.0 Extension Capabilities:
+      bmAttributes:          00000000h
+    USB 3.0 Capabilities:
+      bmAttributes:          00h
+      wSpeedSupported:       14
+      bFunctionalitySupport: 3
+      bU1devExitLat:         0
+      bU2devExitLat:         0
+
+Dev (bus 2, device 1): 1D6B - 0003
+  Speed:                     5Gbit/s aka USB3.0
+  Manufacturer:              Linux 5.15.32-v7l+ xhci-hcd
+  Product:                   xHCI Host Controller
+  Serial Number:             0000:01:00.0
+  Configuration [0]:
+    wTotalLength:              31
+    bNumInterfaces in config:  1
+    bConfigurationValue:       1
+    iConfiguration str descr:  0
+    bmAttributes:              e0h Remote wakeup Self-powered
+    MaxPower:                  0
+    Interface[0] alt[0]:
+      bInterfaceNumber current:      0
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               9
+      bInterfaceSubClass:            0
+      bInterfaceProtocol:            0
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    81h, endpoint number: 1, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      4
+        bInterval:           12
+        bRefresh:            0
+        bSynchAddress:       0
+      USB 3.0 Endpoint Companion:
+        bMaxBurst:           0
+        bmAttributes:        00h
+        wBytesPerInterval:   2
+  Binary Object Store (BOS):
+    wTotalLength:            15
+    bNumDeviceCaps descr-s:  1
+    USB 3.0 Capabilities:
+      bmAttributes:          02h
+      wSpeedSupported:       8
+      bFunctionalitySupport: 1
+      bU1devExitLat:         4
+      bU2devExitLat:         231
+
+Dev (bus 1, device 4): 0C45 - 7663
+  Speed:                     1.5Mbit/s aka USB1.0
+  Manufacturer:              SONiX
+  Product:                   USB Keyboard
+  Serial Number:
+  Configuration [0]:
+    wTotalLength:              59
+    bNumInterfaces in config:  2
+    bConfigurationValue:       1
+    iConfiguration str descr:  0
+    bmAttributes:              a0h Remote wakeup Self-powered
+    MaxPower:                  50
+    Interface[0] alt[0]:
+      bInterfaceNumber current:      0
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               3
+      bInterfaceSubClass:            1
+      bInterfaceProtocol:            1
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    81h, endpoint number: 1, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      8
+        bInterval:           10
+        bRefresh:            0
+        bSynchAddress:       0
+    Interface[1] alt[0]:
+      bInterfaceNumber current:      1
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               3
+      bInterfaceSubClass:            0
+      bInterfaceProtocol:            0
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    82h, endpoint number: 2, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      3
+        bInterval:           10
+        bRefresh:            0
+        bSynchAddress:       0
+
+Dev (bus 1, device 3): 046D - C52B
+  Speed:                     12Mbit/s aka USB1.1
+  Manufacturer:              Logitech
+  Product:                   USB Receiver
+  Serial Number:
+  Configuration [0]:
+    wTotalLength:              84
+    bNumInterfaces in config:  3
+    bConfigurationValue:       1
+    iConfiguration str descr:  4
+    bmAttributes:              a0h Remote wakeup Self-powered
+    MaxPower:                  49
+    Interface[0] alt[0]:
+      bInterfaceNumber current:      0
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               3
+      bInterfaceSubClass:            1
+      bInterfaceProtocol:            1
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    81h, endpoint number: 1, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      8
+        bInterval:           8
+        bRefresh:            0
+        bSynchAddress:       0
+    Interface[1] alt[0]:
+      bInterfaceNumber current:      1
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               3
+      bInterfaceSubClass:            1
+      bInterfaceProtocol:            2
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    82h, endpoint number: 2, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      8
+        bInterval:           2
+        bRefresh:            0
+        bSynchAddress:       0
+    Interface[2] alt[0]:
+      bInterfaceNumber current:      2
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               3
+      bInterfaceSubClass:            0
+      bInterfaceProtocol:            0
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    83h, endpoint number: 3, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      32
+        bInterval:           2
+        bRefresh:            0
+        bSynchAddress:       0
+
+Dev (bus 1, device 2): 2109 - 3431
+  Speed:                     480Mbit/s aka USB2.0
+  Manufacturer:              not specified
+  Product:                   USB2.0 Hub
+  Serial Number:
+  Configuration [0]:
+    wTotalLength:              25
+    bNumInterfaces in config:  1
+    bConfigurationValue:       1
+    iConfiguration str descr:  0
+    bmAttributes:              e0h Remote wakeup Self-powered
+    MaxPower:                  50
+    Interface[0] alt[0]:
+      bInterfaceNumber current:      0
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               9
+      bInterfaceSubClass:            0
+      bInterfaceProtocol:            0
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    81h, endpoint number: 1, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      1
+        bInterval:           12
+        bRefresh:            0
+        bSynchAddress:       0
+  Binary Object Store (BOS):
+    wTotalLength:            42
+    bNumDeviceCaps descr-s:  3
+    USB 2.0 Extension Capabilities:
+      bmAttributes:          00000002h
+    USB 3.0 Capabilities:
+      bmAttributes:          00h
+      wSpeedSupported:       14
+      bFunctionalitySupport: 1
+      bU1devExitLat:         4
+      bU2devExitLat:         231
+
+Dev (bus 1, device 1): 1D6B - 0002
+  Speed:                     480Mbit/s aka USB2.0
+  Manufacturer:              Linux 5.15.32-v7l+ xhci-hcd
+  Product:                   xHCI Host Controller
+  Serial Number:             0000:01:00.0
+  Configuration [0]:
+    wTotalLength:              25
+    bNumInterfaces in config:  1
+    bConfigurationValue:       1
+    iConfiguration str descr:  0
+    bmAttributes:              e0h Remote wakeup Self-powered
+    MaxPower:                  0
+    Interface[0] alt[0]:
+      bInterfaceNumber current:      0
+      bAlternateSetting current:     0
+      bNumEndpoints:                 1
+      bInterfaceClass:               9
+      bInterfaceSubClass:            0
+      bInterfaceProtocol:            0
+      iInterface ascii id:           0
+      Endpoint:
+        bEndpointAddress:    81h, endpoint number: 1, dir: in(device-to-host)
+        bmAttributes:        03h type: interrupt
+        wMaxPacketSize:      4
+        bInterval:           12
+        bRefresh:            0
+        bSynchAddress:       0
