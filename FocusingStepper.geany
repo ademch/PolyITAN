@@ -19,22 +19,22 @@ indent_mode=2
 
 [project]
 name=FocusingStepper
-base_path=/home/polyitan/projects/FocusingStepper/
+base_path=/home/polyitan/projects/PolyITAN/FocusingStepper
 description=
 
 [long line marker]
 long_line_behaviour=1
 long_line_column=72
 
-[files]
-current_page=1
-FILE_NAME_0=1788;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2FCommand.cpp;0;4
-FILE_NAME_1=307;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2FCommand.h;0;4
-FILE_NAME_2=1362;C++;0;EUTF-8;0;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2Fmain.cpp;0;2
-FILE_NAME_3=384;Make;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2FMakefile;0;4
-FILE_NAME_4=154;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2FPinsConfig.h;0;4
-FILE_NAME_5=246;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2FStepperMotor.cpp;0;4
-FILE_NAME_6=29;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FFocusingStepper%2FStepperMotor.h;0;4
-
 [VTE]
 last_dir=/home/polyitan
+
+[files]
+current_page=4
+FILE_NAME_0=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2FCommand.cpp;0;4
+FILE_NAME_1=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2FCommand.h;0;4
+FILE_NAME_2=0;C++;0;EUTF-8;0;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2Fmain.cpp;0;2
+FILE_NAME_3=0;Make;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2FMakefile;0;4
+FILE_NAME_4=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2FPinsConfig.h;0;4
+FILE_NAME_5=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2FStepperMotor.cpp;0;4
+FILE_NAME_6=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FFocusingStepper%2FStepperMotor.h;0;4

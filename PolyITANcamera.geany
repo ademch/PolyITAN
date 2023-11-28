@@ -27,7 +27,7 @@ long_line_behaviour=1
 long_line_column=72
 
 [files]
-current_page=23
+current_page=28
 FILE_NAME_0=73610;C++;0;EUTF-8;1;1;0;%2Fusr%2Finclude%2FGL%2Fgl.h;0;4
 FILE_NAME_1=289441;C++;0;EUTF-8;1;1;0;%2Fusr%2Finclude%2FGL%2Fglext.h;0;4
 FILE_NAME_2=4739;C++;0;EUTF-8;0;1;0;%2Fusr%2Finclude%2FGL%2Ffreeglut_ext.h;0;4
@@ -54,16 +54,18 @@ FILE_NAME_22=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPol
 FILE_NAME_23=0;Make;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FMakefile;0;4
 FILE_NAME_24=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FParamsSubWindow.cpp;0;4
 FILE_NAME_25=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FParamsSubWindow.h;0;4
-FILE_NAME_26=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FPolyITAN_Camera.cpp;0;4
+FILE_NAME_26=3540;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FPolyITAN_Camera.cpp;0;4
 FILE_NAME_27=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FPolyITAN_Camera.h;0;4
-FILE_NAME_28=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Frgb2yuvFBO.cpp;0;4
+FILE_NAME_28=2767;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Frgb2yuvFBO.cpp;0;4
 FILE_NAME_29=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Frgb2yuvFBO.h;0;4
 FILE_NAME_30=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Fsmx-20Sxx.cpp;0;4
-FILE_NAME_31=0;C++;0;EUTF-8;2;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Fsmx-20Sxx.h;0;8
+FILE_NAME_31=2863;C++;0;EUTF-8;2;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Fsmx-20Sxx.h;0;8
 FILE_NAME_32=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Fsmx_usb.cpp;0;4
 FILE_NAME_33=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2Fsmx_usb.h;0;4
 FILE_NAME_34=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FSobelFBO.cpp;0;4
 FILE_NAME_35=0;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2FPolyITAN_Camera%2FPolyITAN_Camera%2FSobelFBO.h;0;4
+FILE_NAME_36=976;C++;0;EUTF-8;1;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2F%21%21adGlobals%2FbmpHandler.cpp;0;4
+FILE_NAME_37=627;C++;0;EUTF-8;2;1;0;%2Fhome%2Fpolyitan%2Fprojects%2FPolyITAN%2FPolyITANcamera%2F%21%21adGlobals%2FbmpHandler.h;0;8
 
 [VTE]
 last_dir=/home/polyitan

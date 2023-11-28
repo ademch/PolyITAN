@@ -5,16 +5,20 @@
 #include <list>
 #include <utility>
 
+typedef unsigned long DWORD;
+typedef long LONG;
+typedef unsigned short WORD;
+
+//#include <pshpack1.h>
+#pragma pack(push)
+#pragma pack(1)
+
 typedef struct tagRGBQUAD {
 	unsigned char rgbBlue;
 	unsigned char rgbGreen;
 	unsigned char rgbRed;
 	unsigned char rgbReserved;
 } RGBQUAD;
-
-typedef unsigned long DWORD;
-typedef long LONG;
-typedef unsigned short WORD;
 
 typedef struct tagBITMAPINFOHEADER {
   DWORD biSize;
@@ -37,6 +41,9 @@ typedef struct tagBITMAPFILEHEADER {
   WORD  bfReserved2;
   DWORD bfOffBits;
 } BITMAPFILEHEADER, *LPBITMAPFILEHEADER, *PBITMAPFILEHEADER;
+
+//#include <poppack.h>
+#pragma pack(pop)
 
 #  define BI_RGB       0             /* No compression - straight BGR data */
 #  define BI_RLE8      1             /* 8-bit run-length compression */

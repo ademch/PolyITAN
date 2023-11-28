@@ -74,23 +74,23 @@ bool rgb2yuvFBO::KeyboardFunc(unsigned char key, int x, int y)
 		char filename[400];
 		unsigned char* downsized;
 
-		sprintf(filename, "Frames\\%ld%ldY.bmp", T0.tv_sec, T0.tv_nsec);
+		sprintf(filename, "Frames/%ld%ldY.bmp", T0.tv_sec, T0.tv_nsec);
 		data = fbo->DownloadTexture(GL_RED);
 		saveGreyscaleBMP(FullPathToFile(filename), data, fbo->m_iWidth, fbo->m_iHeight, 8);
 
-		sprintf(filename, "Frames\\%ld%ldU.bmp", T0.tv_sec, T0.tv_nsec);
+		sprintf(filename, "Frames/%ld%ldU.bmp", T0.tv_sec, T0.tv_nsec);
 		data = fbo->DownloadTexture(GL_GREEN);
 		downsized = BitmapResizeGreyscale05x(data, fbo->m_iWidth, fbo->m_iHeight);
 		saveGreyscaleBMP(FullPathToFile(filename), downsized, fbo->m_iWidth/2, fbo->m_iHeight/2, 4);
 		delete[] downsized;
 
-		sprintf(filename, "Frames\\%ld%ldV.bmp", T0.tv_sec, T0.tv_nsec);
+		sprintf(filename, "Frames/%ld%ldV.bmp", T0.tv_sec, T0.tv_nsec);
 		data = fbo->DownloadTexture(GL_BLUE);
 		downsized = BitmapResizeGreyscale05x(data, fbo->m_iWidth, fbo->m_iHeight);
 		saveGreyscaleBMP(FullPathToFile(filename), downsized, fbo->m_iWidth/2, fbo->m_iHeight/2, 4);
 		delete[] downsized;
 
-		sprintf(filename, "Frames\\%ld%ldY1.bmp", T0.tv_sec, T0.tv_nsec);
+		sprintf(filename, "Frames/%ld%ldY1.bmp", T0.tv_sec, T0.tv_nsec);
 		data = fbo->DownloadTexture(GL_ALPHA);
 		saveGreyscaleBMP(FullPathToFile(filename), data, fbo->m_iWidth, fbo->m_iHeight, 4);
 
